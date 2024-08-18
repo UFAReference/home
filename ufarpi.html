@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Game Info</title>
+<style>
+    table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    th, td {
+        border: 1px solid #dddddd;
+        text-align: left;
+        padding: 8px;
+    }
+    th {
+        background-color: #f2f2f2;
+    }
+    a {
+        color: blue;
+        text-decoration: none;
+    }
+    a:hover {
+        text-decoration: underline;
+    }
+</style>
+</head>
+<body>
+
+<h2>Game Info</h2>
+
+<label for="score1Filter">Score 1:</label>
+<input type="number" id="score1Filter" placeholder="Enter first score">
+
+<label for="score2Filter">Score 2:</label>
+<input type="number" id="score2Filter" placeholder="Enter second score">
+
+<table id="gameTable">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Away Team</th>
+            <th>Away Score</th>
+            <th>Home Team</th>
+            <th>Home Score</th>
+            <th>Advanced Stats</th> <!-- New column for links -->
+        </tr>
+    </thead>
+    <tbody></tbody>
+</table>
+
+<script>
+    const score1FilterInput = document.getElementById('score1Filter');
+    const score2FilterInput = document.getElementById('score2Filter');
+
+    // Function to filter table rows based on matching scores
+    function filterTable() {
+        const score1Filter = parseInt(score1FilterInput.value, 10);
+        const score2Filter = parseInt(score2FilterInput.value, 10);
+        const rows = document.querySelectorAll('#gameTable tbody tr');
+
+        rows.forEach(row => {
+            const awayScore = parseInt(row.cells[2].textContent, 10);
+            const homeScore = parseInt(row.cells[4].textContent, 10);
+
+            // Check if both scores in the game match both input scores
+            if ((awayScore === score1Filter && homeScore === score2Filter) || 
+                (awayScore === score2Filter && homeScore === score1Filter)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update the URL based on filter values
+        updateURL(score1Filter, score2Filter);
+    }
+
+    // Function to update the URL with the current filter values
+    function updateURL(score1, score2) {
+        const baseURL = 'https://example.com/games';
+        const params = new URLSearchParams();
+        
+        if (!isNaN(score1) && !isNaN(score2)) {
+            params.set('score', `${score1}-${score2}`);
+        } else if (!isNaN(score1)) {
+            params.set('score', `${score1}`);
+        } else if (!isNaN(score2)) {
+            params.set('score', `${score2}`);
+        }
+
+        history.replaceState(null, '', `${baseURL}?${params.toString()}`);
+    }
+
+    // Fetch data from the API
+    fetch('https://www.backend.ufastats.com/api/v1/games?date=:2024-01')
+        .then(response => response.json())
+        .then(data => {
+            const tbody = document.querySelector('#gameTable tbody');
+
+            // Sort games by date, newest first
+            data.data.sort((a, b) => new Date(b.startTimestamp) - new Date(a.startTimestamp));
+
+            // Loop through each game and add to table
+            data.data.forEach(game => {
+                // Extract the date from startTimestamp and remove the time portion
+                const gameDate = game.startTimestamp.split('T')[0];
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${gameDate}</td>
+                    <td>${game.awayTeamID}</td>
+                    <td>${game.awayScore}</td>
+                    <td>${game.homeTeamID}</td>
+                    <td>${game.homeScore}</td>
+                    <td><a href="https://www.watchufa.com/league/game/${game.gameID}" target="_blank">View Stats</a></td> <!-- New link column -->
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add event listeners to filter inputs
+            score1FilterInput.addEventListener('input', filterTable);
+            score2FilterInput.addEventListener('input', filterTable);
+
+            // Initial filter
+            filterTable();
+        })
+        .catch(error => console.error('Error fetching data:', error));
+</script>
+
+</body>
+</html>
